@@ -1,3 +1,4 @@
+import os
 import discord
 from discord.ext import commands
 import smtplib
@@ -7,19 +8,16 @@ from dotenv import load_dotenv
 load_dotenv()  
 
 # Configuración
-DISCORD_TOKEN = "TU_TOKEN_DEL_BOT"
-CHANNEL_ID = 1234567890123456  
-
-# Config Email (Gmail)
-EMAIL_FROM = "tu_email@gmail.com"
-EMAIL_PASS = "contraseña_app"  # Usa "Contraseña de aplicación"
-EMAIL_TO = "email_destino@example.com"
-
-# Config WhatsApp (Twilio)
-TWILIO_SID = "tu_account_sid"
-TWILIO_TOKEN = "tu_auth_token"
-TWILIO_PHONE = "whatsapp:+14155238886"  # Número de Twilio
-YOUR_PHONE = "whatsapp:+521234567890"   # Tu número con código país
+# Acceder a las variables
+DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
+CHANNEL_ID = int(os.getenv('CHANNEL_ID'))  # Convertir a entero
+EMAIL_FROM = os.getenv('EMAIL_FROM')
+EMAIL_PASS = os.getenv('EMAIL_PASS')
+EMAIL_TO = os.getenv('EMAIL_TO')
+TWILIO_SID = os.getenv('TWILIO_SID')
+TWILIO_TOKEN = os.getenv('TWILIO_TOKEN')
+TWILIO_PHONE = os.getenv('TWILIO_PHONE')
+YOUR_PHONE = os.getenv('YOUR_PHONE')
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -44,23 +42,37 @@ async def on_message(message):
 
 def send_email(content):
     try:
+        # Configuración mejorada
+        subject = "🚨 Nuevo mensaje en Discord!"
+        body = f"Subject: {subject}\n\n{content}"
+        
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(EMAIL_FROM, EMAIL_PASS)
-            subject = "🚨 Nuevo mensaje en Discord!"
-            msg = f"Subject: {subject}\n\n{content}"
-            server.sendmail(EMAIL_FROM, EMAIL_TO, msg.encode('utf-8'))
+            server.sendmail(EMAIL_FROM, EMAIL_TO, body.encode('utf-8'))
+        print("✅ Email enviado!")
     except Exception as e:
-        print("Error al enviar email:", e)
+        print(f"❌ Error en email: {str(e)}")
 
 def send_whatsapp(content):
     try:
+        # Acortar mensajes largos (WhatsApp limita a 4096 caracteres)
+        if len(content) > 3000:
+            content = content[:3000] + "... [mensaje truncado]"
+        
         client = Client(TWILIO_SID, TWILIO_TOKEN)
-        client.messages.create(
+        message = client.messages.create(
             body=content,
             from_=TWILIO_PHONE,
             to=YOUR_PHONE
         )
+        print(f"✅ WhatsApp enviado! SID: {message.sid}")
     except Exception as e:
-        print("Error al enviar WhatsApp:", e)
+        print(f"❌ Error en WhatsApp: {str(e)}")
+
+print("=== Variables cargadas ===")
+print(f"DISCORD_TOKEN: {bool(DISCORD_TOKEN)}")  # Debe ser True
+print(f"CHANNEL_ID: {CHANNEL_ID}")
+print(f"EMAIL_FROM: {EMAIL_FROM}")
+print(f"TWILIO_SID: {bool(TWILIO_SID)}")
 
 bot.run(DISCORD_TOKEN)
