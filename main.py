@@ -2,10 +2,13 @@ import discord
 from discord.ext import commands
 import smtplib
 from twilio.rest import Client
+from dotenv import load_dotenv
+
+load_dotenv()  
 
 # Configuración
 DISCORD_TOKEN = "TU_TOKEN_DEL_BOT"
-CHANNEL_ID = 1234567890123456  # Reemplaza con el ID del canal a monitorear
+CHANNEL_ID = 1234567890123456  
 
 # Config Email (Gmail)
 EMAIL_FROM = "tu_email@gmail.com"
