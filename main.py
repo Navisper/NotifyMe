@@ -20,12 +20,25 @@ TWILIO_PHONE = os.getenv('TWILIO_PHONE')
 YOUR_PHONE = os.getenv('YOUR_PHONE')
 
 intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix='!', intents=intents)
+intents.message_content = True  # Intent para leer contenido de mensajes
+intents.members = True         # Si necesitas información de miembros
+intents.presences = True       # Si necesitas estados de usuarios
+
+
+bot = commands.Bot(
+    command_prefix='!', 
+    intents=intents,
+    # Añade esto para evitar conflictos con comandos
+    allowed_mentions=discord.AllowedMentions.none()
+)
 
 @bot.event
+@bot.event
 async def on_ready():
-    print(f'Bot conectado como {bot.user}')
+    print(f'Conectado como {bot.user} en {len(bot.guilds)} servidores!')
+    # Prueba de que los intents funcionan
+    channel = bot.get_channel(int(os.getenv('CHANNEL_ID')))
+    await channel.send("¡Bot activado correctamente! ✅")
 
 @bot.event
 async def on_message(message):
@@ -75,4 +88,6 @@ print(f"CHANNEL_ID: {CHANNEL_ID}")
 print(f"EMAIL_FROM: {EMAIL_FROM}")
 print(f"TWILIO_SID: {bool(TWILIO_SID)}")
 
-bot.run(DISCORD_TOKEN)
+
+if __name__ == "__main__":
+    bot.run(os.getenv('DISCORD_TOKEN'))
