@@ -12,7 +12,8 @@ load_dotenv()
 # Configuración
 # Acceder a las variables
 DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
-CHANNEL_ID = int(os.getenv('CHANNEL_ID'))  # Convertir a entero
+MONITORED_CHANNELS = list(map(int, os.getenv("MONITORED_CHANNELS").split(',')))
+ALLOWED_ROLES = list(map(int, os.getenv("ALLOWED_ROLES").split(',')))
 EMAIL_FROM = os.getenv('EMAIL_FROM')
 EMAIL_PASS = os.getenv('EMAIL_PASS')
 EMAIL_TO = os.getenv('EMAIL_TO')
@@ -58,31 +59,52 @@ def can_send_notification():
 async def on_ready():
     print(f'Conectado como {bot.user} en {len(bot.guilds)} servidores!')
     # Prueba de que los intents funcionan
-    channel = bot.get_channel(int(os.getenv('CHANNEL_ID')))
-    await channel.send("¡Bot activado correctamente! ✅")
+    print(f'Monitoreando {len(MONITORED_CHANNELS)} canales')
+    print(f'Roles permitidos: {ALLOWED_ROLES}')
 
 @bot.event
 async def on_message(message):
     global last_notification_time
     
-    # Solo procesar mensajes en el canal específico y que no sean de bots
-    if message.channel.id == CHANNEL_ID and not message.author.bot:
-        # Verificar si se puede enviar notificación
-        if can_send_notification():
-            content = f"Nuevo mensaje en {message.guild.name} - #{message.channel.name}:\n{message.author}: {message.content}"
-            
-            # Actualizar el tiempo de la última notificación
-            last_notification_time = datetime.now()
-            
-            # Enviar notificaciones
-            send_email(content)
-            send_whatsapp(content)
-            print(f"✅ Notificación enviada a las {last_notification_time.strftime('%H:%M:%S')}")
-        else:
-            # Calcular cuánto tiempo falta para la próxima notificación
-            next_time = last_notification_time + timedelta(minutes=COOLDOWN_MINUTES)
-            remaining = (next_time - datetime.now()).seconds // 60
-            print(f"⏳ Mensaje ignorado. Próxima notificación en {remaining} minutos")
+    # Verificar si es un canal monitoreado
+    if message.channel.id not in MONITORED_CHANNELS:
+        await bot.process_commands(message)
+        return
+    
+    # Ignorar mensajes de bots
+    if message.author.bot:
+        await bot.process_commands(message)
+        return
+    
+    # Obtener IDs de roles del autor
+    author_roles = [role.id for role in message.author.roles]
+    
+    # Verificar si el autor tiene algún rol permitido
+    if not any(role_id in ALLOWED_ROLES for role_id in author_roles):
+        await bot.process_commands(message)
+        return
+    
+    # Verificar si se puede enviar notificación
+    if can_send_notification():
+        content = (
+            f"🚨 *Nuevo mensaje en #{message.channel.name}*\n"
+            f"👤 *Autor:* {message.author.name}\n"
+            f"💬 *Mensaje:* {message.content}\n"
+            f"🔗 [Ir al mensaje]({message.jump_url})"
+            )
+        
+        # Actualizar el tiempo de la última notificación
+        last_notification_time = datetime.now()
+        
+        # Enviar notificaciones
+        send_email(content)
+        send_whatsapp(content)
+        print(f"✅ Notificación enviada a las {last_notification_time.strftime('%H:%M:%S')}")
+    else:
+        # Calcular cuánto tiempo falta para la próxima notificación
+        next_time = last_notification_time + timedelta(minutes=COOLDOWN_MINUTES)
+        remaining = (next_time - datetime.now()).seconds // 60
+        print(f"⏳ Mensaje ignorado. Próxima notificación en {remaining} minutos")
     
     await bot.process_commands(message)
 
@@ -117,7 +139,6 @@ def send_whatsapp(content):
 
 print("=== Variables cargadas ===")
 print(f"DISCORD_TOKEN: {bool(DISCORD_TOKEN)}")  # Debe ser True
-print(f"CHANNEL_ID: {CHANNEL_ID}")
 print(f"EMAIL_FROM: {EMAIL_FROM}")
 print(f"TWILIO_SID: {bool(TWILIO_SID)}")
 
